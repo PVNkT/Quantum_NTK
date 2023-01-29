@@ -1,0 +1,10 @@
+numpy
+
+tensorflow_datasets
+
+neural-tangents
+
+omegaconf
+
+jax == 0.3.25
+

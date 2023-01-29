@@ -1,0 +1,12 @@
+
+N: 10
+
+test_points: 64
+
+d: 3
+
+rand: False
+
+rand_train: False
+
+L: 10
