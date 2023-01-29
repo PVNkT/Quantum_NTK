@@ -2,3 +2,7 @@
 
 /output
 
+/data_process/__pycache__
+
+/network/__pycache__
+

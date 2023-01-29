@@ -9,7 +9,9 @@ python3-pip \
 vim \
 sudo \
 curl \
-git 
+git \
+net-tools \
+openssh-server
 
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
     && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
@@ -26,4 +28,6 @@ RUN pip install jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com
 
 WORKDIR /workspace
 
-COPY Quantum_NTK Quantum_NTK
+COPY . .
+
+
