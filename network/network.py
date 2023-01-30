@@ -4,20 +4,21 @@ import functools
 from jax import random, jit
 from jax.scipy.special import erf
 
-
+# MNIST 데이터의 분석을 위해서 사용될 CNN구조를 만든다.
 class MNIST_network:
     def __init__(self, cfg) -> None:
-        # depth를 적절하게 나눈다.
-
+        # 신경망의 깊이를 얼마나 할지 불러온다.
         depth = cfg.depth
+        # 깊이가 4인 경우 2,1,1의 형태로 나누고 아닌경우 3단계로 균등하게 나눈다.
         if depth == 4:
             self.depths = [2, 1, 1]
         else:
             self.depths = [depth//3, depth//3, depth//3]
-
+        # output channel의 수, NTK에서는 무시된다.
         self.width = 1
-
+        #주어진 조건으로 CNN 신경망을 만든다.
         self.fn = self.create_network()
+    
     # MNIST neural network
     def create_network(self, W_std=np.sqrt(2.0), b_std=0.):
         #activation function으로 Relu함수를 사용
@@ -28,14 +29,13 @@ class MNIST_network:
         #stax의 conv함수에서 W_std, b_std, padding값을 고정한 함수를 만든다.
         conv = functools.partial(stax.Conv, W_std=W_std, b_std=b_std, padding='SAME')
         
-        #convolution과 activation function, average pooling과정을 depth에 맞게 추가하고 마지막의 flatten과정을 추가한다. 
+        #convolution과 activation function, average pooling과정을 나눈 depth만큼 추가하고 마지막의 flatten과정을 추가한다. 
         layers += [conv(self.width, (3, 3)), activation_fn] * self.depths[0]
         layers += [stax.AvgPool((2, 2), strides=(2, 2))]
         layers += [conv(self.width, (3, 3)), activation_fn] * self.depths[1]
         layers += [stax.AvgPool((2, 2), strides=(2, 2))]
         layers += [conv(self.width, (3, 3)), activation_fn] * self.depths[2]
         layers += [stax.AvgPool((2, 2), strides=(2, 2))] * 2
-
         layers += [stax.Flatten(), stax.Dense(2, W_std, b_std)]
 
         #layers 내의 각 과정을 연속적으로 적용해서 반환한다.

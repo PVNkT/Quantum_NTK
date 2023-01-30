@@ -3,44 +3,43 @@ from jax import random
 import tensorflow_datasets as tfds
 from typing import List, Union
 
+#MNIST data를 적절한 형태로 변형시키는 class
 class MNIST_data_process:
     def __init__(self, cfg):
+        #tensorflow dataset에서 MNIST 데이터를 최대크기의 batch 형태로 불러옴
         self.ds = tfds.as_numpy(tfds.load('mnist:3.*.*', batch_size=-1))
+        #지정된 parameter들을 저장
+        #어떤 숫자에 해당하는 데이터를 사용할 지 결정
         self.selection = cfg.selection
-        self.depth = cfg.depth
-        self.data_size = cfg.data_size
-        self.test_size = cfg.test_size
-        self.batch_size = cfg.batch_size
+        # 사용할 데이터의 수 (class의 크기)
         self.k_threshold = cfg.k_threshold
-        #랜덤시드를 일정하게 고정
+        #랜덤 변수를 만들 seed
         seed = cfg.seed
+        #주어진 seed를 통해서 랜덤한 key만듬
         self.key = random.PRNGKey(seed) #[ 0 12]
 
+        #불러온 데이터를 train data와 test data로 나눔
         self.train_set = self.ds["train"]
-        
         self.test_set = self.ds["test"]
 
+        #데이터들에 대한 처리를 진행
         self.processed_train = self.process_data(self.train_set, self.selection, class_size = self.k_threshold)
         self.processed_test = self.process_data(self.test_set, self.selection, class_size = self.k_threshold)
         
-    
-    # MNIST
     # 주어진 데이터를 기반으로 주어진 수만큼의 데이터로 나눈다.
     def process_data(self, data_chunk, selection, class_size=None, shuffle=True):
         # one-hot encode the labels and normalize the data.
-        #전역 변수로 설정된 key를 사용한다.
-        key = self.key
         #데이터에서 image와 label에 해당되는 데이터만을 골라서 변수로 설정한다.
         image, label = data_chunk['image'], data_chunk['label']
-        #라벨의 수
+        #라벨의 수를 계산한다.
         n_labels = len(selection)
 
         # pick two labels
         #선택한 label들에 해당되는 index들을 골라서 저장한다.
         indices = np.where((label == selection[0]) | (label == selection[1]))[0]
         #주어진 PRNG key를 두 개로 나눈다. 
-        key, i_key = random.split(key, 2)
-        #나누어진 key를 사용해서 index들의 array를 섞고 적절한 형태로 바꾼다. 
+        key, i_key = random.split(self.key, 2)
+        #나누어진 key를 사용해서 index들의 array를 섞고 한 줄로 바꾼다. 
         indices = random.permutation(i_key, indices).reshape(1, -1)
         #0에 해당하는 label은 True, 1에 해당되는 label은 False로 하는 Tuple 데이터를 만든다. 
         label = (label[tuple(indices)] == selection[0])
@@ -66,10 +65,10 @@ class MNIST_data_process:
         key, j_key = random.split(key, 2)
         #데이터의 셔플 여부 결정
         if shuffle:
-            #인덱스를 다시 섞고 형태를 바꾼다.
+            #인덱스를 다시 섞고 한 줄 형태로 바꾼다.
             new_indices = random.permutation(j_key, np.array(new_indices)).reshape(1, -1)
         else:
-            #인덱스의 형태만 변화시킨다.
+            #인덱스의 형태만 한 줄 형태로 바꾼다.
             new_indices = np.array(new_indices).reshape(1, -1)
 
         #새로운 index에 대응되는 label을 만듬
@@ -96,12 +95,8 @@ class sphere_data_process:
         seed = cfg.seed
         key = random.PRNGKey(seed) #[ 0 12]
         self.key, self.x_key, self.y_key = random.split(key, 3)
-        self.N = cfg.N
-        self.test_points = cfg.test_points
-        self.d = cfg.d
-        self.rand = cfg.rand
-        self.rand
-        self.processed_train, self.process_test = self.process_data()         
+        data_parameter = cfg.data_parameter
+        self.processed_train, self.processed_test = self.process_data(**data_parameter)
     def target_fn(self, x):
         #주어진 데이터의 길이만큼의 array를 준비
         out = np.zeros(len(x))
