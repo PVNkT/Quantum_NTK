@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:latest-devel-gpu
+FROM tensorflow/tensorflow:2.11.0-gpu-jupyter
 
 USER root
 

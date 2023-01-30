@@ -8,8 +8,6 @@ test_size: 64
 
 batch_size: 4
 
-seed: 12
-
 selection: [1,0]
 
 k_threshold: 128

@@ -19,7 +19,7 @@ class make_kernel():
         #kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
-
+        print(self.kernel_train.shape, self.kernel_test)
         #sparse kernel을 만든다.
         kernel_train_sparse = self.sparsify(self.kernel_train, self.kernel_mag)
         #kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
@@ -80,15 +80,21 @@ class make_kernel():
         #sparse matrix를 출력
         return np.array(out)
 
-    def calc_mean(self):
+    def calc_exact(self):
         #평균 계산 k_*^T K^{-1} y
         #정확한 kernel을 사용해 계산한 값
         mean = self.kernel_test @ inv(self.kernel_train) @ self.train_data['label']
+        return mean
+
+    def calc_sparse(self):
         #sparse 행렬을 사용한 값
         mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
+        return mean_sparse
+
+    def calc_identity(self):
         #diagonal 행렬을 사용한 값
         mean_identity = self.kernel_test_normalized @ inv(self.kernel_train_identity) @ self.train_data['label']
-        return mean, mean_sparse, mean_identity
+        return mean_identity
 
 
 
