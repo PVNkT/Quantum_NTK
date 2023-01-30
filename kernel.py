@@ -10,6 +10,8 @@ class make_kernel():
         self.key = random.PRNGKey(cfg.seed) #[ 0 12]
         # label별 데이터 수의 최대 값
         self.k_threshold = cfg.k_threshold
+        #sparse한 정도 (kernel의 크기에 log를 취한것에 sparsity를 곱해서 그만큼의 요소를 0으로 만듬)
+        self.sparsity = cfg.sparsity
         #kernel 함수에 batch를 적용
         kernel_fn = nt.batch(kernel_fn, batch_size=cfg.batch_size)
         # 훈련 데이터와 테스트 데이터를 나눈다.
@@ -19,7 +21,6 @@ class make_kernel():
         #kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
-        print(self.kernel_train.shape, self.kernel_test)
         #sparse kernel을 만든다.
         kernel_train_sparse = self.sparsify(self.kernel_train, self.kernel_mag)
         #kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
@@ -47,7 +48,7 @@ class make_kernel():
     # kernel을 받아서 확률 함수에 따라서 
     def sparsify(self, m, probability_function):
         #원하는 sparsity(0이 아닌 항이 얼마나 많을 지)
-        target_sparsity = int(5*np.log(m.shape[1]))
+        target_sparsity = int(self.sparsity*np.log(m.shape[1]))
 
         #주어진 matrix와 같은 모양의 0으로된 행렬
         out = np2.zeros(m.shape)
@@ -64,7 +65,7 @@ class make_kernel():
 
             #키를 2개로 나눔
             key, p_key = random.split(self.key, 2)
-            #랜덤하게 0이 되지 않을 위치를 정한다.
+            #랜덤하게 0이 되지 않을 위치를 정한다. (중복되지 않도록)
             nonzero_indices = random.choice(p_key, np.arange(len(m)), shape=(target_sparsity,), replace=False, p=probs)
             #i가 nonzero_indice에 포함되지 않을 경우 포함시킨다. (대각 성분은 0이 되지 않게 한다.)
             if i not in nonzero_indices:

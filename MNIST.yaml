@@ -13,3 +13,5 @@ selection: [1,0]
 k_threshold: 128
 
 trial: 0
+
+sparsity: 5

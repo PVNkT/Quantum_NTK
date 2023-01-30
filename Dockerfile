@@ -1,11 +1,9 @@
 FROM tensorflow/tensorflow:2.11.0-gpu-jupyter
 
-USER root
-
 ENV TF_GPU_ALLOCATOR=cuda_malloc_async
 
 RUN apt update && apt install -y \
-python3-pip \
+bc \
 vim \
 sudo \
 curl \
