@@ -9,6 +9,15 @@ from omegaconf import OmegaConf
 
 class make_kernel():
     def __init__(self, kernel_fn, cfg, data):
+        '''
+        <생성되는 커널들>
+        1. self.kernel_train : 훈련데이터를 이용해 정확하게 계산된 커널
+        2. self.kernel_test : 테스트 데이터를 이용해 정확하게 계산된 커널
+        3. self.kernel_train_sparse  : Random Process를 통해 sparse Kernel을 생성.
+        4. self.kernel_train_identity : Diagonal term들만 남아있음.
+        5. self.kernel_test_normalized : 테스트 데이터를 이용해 정확하게 계산된 커널을 normalize한 커널.
+        '''
+
         #주어진 seed에 맞게 key를 만듬
         self.key = random.PRNGKey(cfg.seed) #[ 0 12]
         # label별 데이터 수의 최대 값
@@ -26,6 +35,8 @@ class make_kernel():
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
         #sparse kernel을 만든다.
+        #sparsify라는 함수에 두번째 인자인 probability_function 위치에 kernel_mag라는 함수 자체를 넘겨주었음을 알아두자.
+        #sparse한 행렬을 sparsify를 통해 생성하고 train데이터를 이용.
         self.sparsifying_class = sparsify(self.kernel_train, self.sparsity, self.key, self.k_threshold)
         self.sparsify = getattr(self.sparsifying_class, self.sparse_method)
         #test kernel을 normalize한다. (데이터의 수 만큼으로 데이터를 나누고 값이 -1~1사이의 값을 가지도록 만든다. 
@@ -76,11 +87,12 @@ class tools:
         #kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
         #numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
         #numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
+        #그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
         diagonal = np.diag(self.original_kernel)*np.eye(self.original_kernel.shape[0])
         return diagonal
 
 class sparsify(tools):
-    def __init__(self, m, sparsity, key, k_threshold):
+    def __init__(self, m, sparsity, key, k_threshold): #m자리에 test/train kernel을 넣었음
         self.key = key
         self.sparsity = sparsity
         self.k_threshold = k_threshold
@@ -97,11 +109,27 @@ class sparsify(tools):
         out = np2.zeros(m.shape)
         #주어진 행렬을 array로 바꿈
         m2 = np2.array(m)
+        
+        '''
+        여기서 이용하는 sparsify의 원리는 다음과 같다.
+        kernel의 한 행씩을 불러와서, for loop로 row by row로 연산을 실시함.
+        0이 되지 않을 부분들을 random.choice를 이용하여 선택하고 
+        그 index들을 추출하여 nonzero_indices에 할당한다.
+        
+        그 다음 diagonal한 성분들이 0이 되지 않게 하기 위해서,
+        nonzero_indeices에 diagonal한 index를 추가한다.
+
+        nonzero_indices들은 1 값을 갖고 그 외의 값들은 0을 갖는 행렬을 만들고 kernel과 곱한다.
+        그러므로 zero인 indices들은 곱한 값이 0이 되므로 이와 같은 방식으로 sparsify를 실시한다.
+        이후 out이라는 리스트에 해당 리스트를 추가하고 이후 이를 array로 바꾸어 반환한다.
+        '''
 
         #행렬의 크기에 대해서 iteration
         for i in range(len(m)):
             # sample the other indices based on the probability function
             #주어진 확률 함수에 행렬의 행과 k_thresh를 입력
+            #위에서 인자로 probability function으로 kernel_mag가 들어왔음.
+            #kernel_mag함수에 test/train kernel의 i번째 행을 넣어서 kernel의 magnitude를 얻음.
             probs = probability_function(m[i])
             #확률의 형태가 되도록 나누어줌
             probs /= np.sum(probs)

@@ -1,5 +1,7 @@
 import jax.numpy as np
 from neural_tangents import stax
+#stax에 대한 source-code
+#https://github.com/google/jax/blob/main/jax/example_libraries/stax.py
 import functools
 from jax import random, jit
 from jax.scipy.special import erf
@@ -25,10 +27,20 @@ class MNIST_network:
         activation_fn = stax.Relu()
         #convolution layer를 저장하는 list
         layers = []
+
+        '''
+        functools.partial은 함수의 일부 입력값이 채워진 다른 함수를 만드는데 사용된다.
+        좀 더 보충설명을 하자면, 함수의 골조는 똑같으나, 세부 요소를 간단히 바꾸어야하는 경우에
+        전체를 계속해서 기술하기 귀찮다. 그러므로 고정할 부분을 명시하고 세부사항을 바꿀 수 있는 
+        functools.partial을 이용하여 weight, bias, padding 값을 고정하여 
+        stax.Conv를 이용하여 Convolution network를 기술한 것이다.
+        '''
+
         # functools.partial은 함수의 일부 입력값이 채워진 다른 함수를 만드는데 사용된다.
-        #stax의 conv함수에서 W_std, b_std, padding값을 고정한 함수를 만든다.
+        # stax의 conv함수에서 W_std, b_std, padding값을 고정한 함수를 만든다.
         conv = functools.partial(stax.Conv, W_std=W_std, b_std=b_std, padding='SAME')
         
+        #위에서 언급한 세부 통제 요소들을 지정하여 layers에 추가한다.
         #convolution과 activation function, average pooling과정을 나눈 depth만큼 추가하고 마지막의 flatten과정을 추가한다. 
         layers += [conv(self.width, (3, 3)), activation_fn] * self.depths[0]
         layers += [stax.AvgPool((2, 2), strides=(2, 2))]

@@ -6,20 +6,28 @@ import jax.numpy as np
 class make_result:
     def __init__(self, cfg, means, labels):
         #여러 형태의 kernel에 대해 계산한 평균값을 불러옴
+        #main에서 mean = kernels.calc_sparse()를 인자로 넣었음.
+        #즉, sparse kernel의 평균값을 인자로 제공함.
         self.mean = means
         #label들을 불러옴
         self.cfg = cfg
         self.labels =labels
         #평균을 기반으로 각 kernel로 계산한 값의 정확도를 계산함
+        #classify는 ntk_mean을 이용하여 0인지 1인지를 계산함.
+        #그리고 이를 기반으로 참인지 거짓인지 labels의 1번째 요소 (참인지 여부)와 대조
+        #그리고 맞는 경우의 점수를 np.sum으로 계산하고 이를 label의 개수로 나눔.
         acc = np.sum(self.classify(self.mean) == labels[:, 0])/len(labels)
         self.sparse_mode = cfg.sparse.method
+
         # 계산된 정확도를 출력
         print(f'sparsity {cfg.sparse.sparsity} accuracy:', acc)
         f = open(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output_{cfg.seed}.csv', 'a', newline='')
         wr = csv.writer(f)
         wr.writerow([cfg.sparse.sparsity, acc])
         f.close()
+
         # 계산 결과를 npy파일로 저장
+        # self.labels와 self.mean을 저장함.
         self.save_result()
 
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
@@ -36,6 +44,7 @@ class make_result:
         # 테스트 데이터들에 대한 추측 값들의 중간값을 구한다.
         thresh = np.median(ntk_mean)
         # 중간값보다 큰 값은 1, 작은 값은 0으로 추측한다.
+        # 여기서 numpy.sign은 양수는 1 음수는 0으로 내어놓는다.
         out = (np.sign(ntk_mean - thresh).flatten() + 1) / 2
         return out
 
