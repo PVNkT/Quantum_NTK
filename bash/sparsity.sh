@@ -9,12 +9,15 @@ read TERM
 
 ITER=$(echo "$LAST-$FIRST" |bc)
 ITER=$(echo "$ITER/$TERM" |bc)
-echo $ITER
 
-while [ echo `expr $ITER > 0` ]
+
+while :
 do
-    python3 main.py sparsity=$FIRST
+    python3 main.py sparse.sparsity=$FIRST seed=1234
     FIRST=$(echo "$FIRST+$TERM" |bc -l)
     ITER=$(echo "$LAST-$FIRST" |bc)
     ITER=$(echo "$ITER/$TERM" |bc)
+    if [ $ITER -le 0 ]; then
+        break
+    fi
 done

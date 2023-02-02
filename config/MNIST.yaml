@@ -2,10 +2,6 @@
 
 depth: 4
 
-data_size: 8
-
-test_size: 64
-
 batch_size: 4
 
 selection: [1,0]
@@ -14,4 +10,7 @@ k_threshold: 128
 
 trial: 0
 
-sparsity: 5
+sparse:
+  method: origin
+  sparsity: 5
+  

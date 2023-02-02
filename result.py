@@ -7,18 +7,17 @@ class make_result:
     def __init__(self, cfg, means, labels):
         #여러 형태의 kernel에 대해 계산한 평균값을 불러옴
         self.mean = means
-        #parameter의 설정값을 불러옴
-        self.cfg =cfg
         #label들을 불러옴
+        self.cfg = cfg
         self.labels =labels
         #평균을 기반으로 각 kernel로 계산한 값의 정확도를 계산함
         acc = np.sum(self.classify(self.mean) == labels[:, 0])/len(labels)
-
+        self.sparse_mode = cfg.sparse.method
         # 계산된 정확도를 출력
-        print(f'sparsity {cfg.sparsity} accuracy:', acc)
-        f = open('sparsity_output.csv', 'a', newline='')
+        print(f'sparsity {cfg.sparse.sparsity} accuracy:', acc)
+        f = open(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output_{cfg.seed}.csv', 'a', newline='')
         wr = csv.writer(f)
-        wr.writerow([cfg.sparsity, acc])
+        wr.writerow([cfg.sparse.sparsity, acc])
         f.close()
         # 계산 결과를 npy파일로 저장
         self.save_result()
@@ -26,7 +25,7 @@ class make_result:
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
     def path(self):
         cfg = self.cfg
-        path_str = f'./output/{cfg.data}_sparsity_{cfg.sparsity}_seed_{cfg.seed}_select_{cfg.selection}_depth_{cfg.depth}_data_{cfg.k_threshold}_trial_{cfg.trial}'
+        path_str = f'./output/{cfg.data}_method_{self.sparse_mode}_sparsity_{cfg.sparse.sparsity}_seed_{cfg.seed}_select_{cfg.selection}_depth_{cfg.depth}_data_{cfg.k_threshold}_trial_{cfg.trial}'
         return path_str
     
     # kernel을 통해서 얻은 평균값을 통해서 어떤 값으로 예측하였는지를 확인하는 함수
