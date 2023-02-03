@@ -154,13 +154,22 @@ class sparsify(tools):
         #conditioning을 진행
         conditioned_matrix = self.conditioning(sparse_matrix)
         return conditioned_matrix
-        
+    
+    def random(self):
+        m = self.original_kernel
+        np2.random.seed(self.key)
+        mask = np2.random.random(m.shape)
+        mask = np2.where(mask < self.sparsity, 1, 0)
+        di = np2.diag_indices(m.shape[0])
+        mask[di] = 1
+        return np.array(mask) * m    
+    
     def block(self):
         m = self.original_kernel
         size = int(m.shape[0])
         l = int(self.sparsity)
         if size % l != 0:
-            raise "size and sparsity doesn't match"
+            raise f"size should be divided by sparsity! size{size}, sparsity{l}"
 
         blocks = [np2.array(m[i:i+l,i:i+l]) for i in range(int(size/l))]
         diag_block = block_diag(*blocks)

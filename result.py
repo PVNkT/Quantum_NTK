@@ -2,6 +2,7 @@ import csv
 
 import jax.numpy as np
 
+from utils import csv_append, npy_save
 
 class make_result:
     def __init__(self, cfg, means, labels):
@@ -21,13 +22,10 @@ class make_result:
 
         # 계산된 정확도를 출력
         print(f'sparsity {cfg.sparse.sparsity} accuracy:', acc)
-        f = open(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output_{cfg.seed}.csv', 'a', newline='')
-        wr = csv.writer(f)
-        wr.writerow([cfg.sparse.sparsity, acc])
-        f.close()
+        # 계산 결과를 csv파일로 저장
+        with csv_append(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output_{cfg.seed}.csv') as wr:
+            wr.writerow([cfg.sparse.sparsity, acc])
 
-        # 계산 결과를 npy파일로 저장
-        # self.labels와 self.mean을 저장함.
         self.save_result()
 
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
@@ -51,8 +49,12 @@ class make_result:
     # 계산된 평균값들을 npy형식으로 저장한다.
     def save_result(self):
         prefix = self.path()
-        np.save(prefix + 'labels.npy', self.labels)
-        np.save(prefix + '.npy', self.mean)
+        # self.labels와 self.mean을 저장함.
+        print(1)
+        with npy_save(prefix + 'labels.npy', self.labels) as npy:
+            npy
+        with npy_save(prefix + '.npy', self.mean) as npy:
+            npy
 
 
 

@@ -13,7 +13,7 @@ ITER=$(echo "$ITER/$TERM" |bc)
 
 while :
 do
-    python3 main.py sparse.sparsity=$FIRST seed=7777
+    python3 main.py sparse.method=random sparse.sparsity=$FIRST seed=1234
     FIRST=$(echo "$FIRST+$TERM" |bc -l)
     ITER=$(echo "$LAST-$FIRST" |bc)
     ITER=$(echo "$ITER/$TERM" |bc)
