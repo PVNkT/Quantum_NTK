@@ -14,7 +14,7 @@ class MNIST_data_process:
         # 사용할 데이터의 수 (class의 크기)
         self.k_threshold = cfg.k_threshold
         #랜덤 변수를 만들 seed
-        seed = cfg.seed
+        seed = int(cfg.seed)
         #주어진 seed를 통해서 랜덤한 key만듬
         self.key = random.PRNGKey(seed) #[ 0 12]
 

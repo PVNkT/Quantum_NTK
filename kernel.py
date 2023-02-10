@@ -6,7 +6,7 @@ from jax.numpy.linalg import inv
 from scipy.linalg import block_diag
 from omegaconf import OmegaConf
 
-
+#kernel 생성을 위한 class.
 class make_kernel():
     def __init__(self, kernel_fn, cfg, data):
         '''
@@ -22,7 +22,9 @@ class make_kernel():
         self.key = random.PRNGKey(cfg.seed) #[ 0 12]
         # label별 데이터 수의 최대 값
         self.k_threshold = cfg.k_threshold
-        #sparse한 정도 (kernel의 크기에 log를 취한것에 sparsity를 곱해서 그만큼의 요소를 0으로 만듬)
+        # sparse한 정도 (kernel의 크기에 log를 취한것에 sparsity를 곱해서 그만큼의 요소를 0으로 만듬)
+        # sparsity에 yaml파일에서 받은 설정값과 방식을 설정. 
+        # sparse method에는 origin, random, block이 존재.
         self.sparsity = cfg.sparse.sparsity
         self.sparse_method = cfg.sparse.method
         #kernel 함수에 batch를 적용
@@ -31,75 +33,92 @@ class make_kernel():
         self.train_data, self.test_data = data
         # the sparsified kernel will be asymmetric, so we can't just use the built-in cholesky
         # hence, we evaluate k_*^T K^{-1} y manually
-        #kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
+        # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
-        #sparse kernel을 만든다.
-        #sparsify라는 함수에 두번째 인자인 probability_function 위치에 kernel_mag라는 함수 자체를 넘겨주었음을 알아두자.
-        #sparse한 행렬을 sparsify를 통해 생성하고 train데이터를 이용.
+        # sparse kernel을 만든다.
+        # sparsify라는 함수에 두번째 인자인 probability_function 위치에 kernel_mag라는 함수 자체를 넘겨주었음을 알아두자.
+        # sparse한 행렬을 sparsify를 통해 생성하고 train데이터를 이용.
+        #class를 저장하여 getattr로 이름에 맞는 
         self.sparsifying_class = sparsify(self.kernel_train, self.sparsity, self.key, self.k_threshold)
         self.sparsify = getattr(self.sparsifying_class, self.sparse_method)
-        #test kernel을 normalize한다. (데이터의 수 만큼으로 데이터를 나누고 값이 -1~1사이의 값을 가지도록 만든다. 
+        # test kernel을 normalize한다. (데이터의 수 만큼으로 데이터를 나누고 값이 -1~1사이의 값을 가지도록 만든다. 
         # 그 후 데이터의 수만큼을 다시 곱해준다.)
+        # sparsifying_class에는 tool이 상속되어져 있으므로 아래와 같은 방법으로 호출.
         normalize = getattr(self.sparsifying_class, "normalize")
         self.kernel_test_normalized = self.k_threshold*normalize(self.kernel_test)
 
+    #kernel의 평균을 계산하기 위한 함수.
     def calc_exact(self):
-        #평균 계산 k_*^T K^{-1} y
-        #정확한 kernel을 사용해 계산한 값
+        # 평균 계산 k_*^T K^{-1} y
+        # 정확한 kernel을 사용해 계산한 값
         
         mean = self.kernel_test @ inv(self.kernel_train) @ self.train_data['label']
         return mean
-
+    
+    #sparse kernel의 평균을 계산하기 위한 값. 
     def calc_sparse(self):
-        #sparse 행렬을 사용한 값
+        # sparse 행렬을 사용한 값
         self.kernel_train_sparse = self.sparsify()
         mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
         return mean_sparse
 
+    #diagonal kernel의 평균을 계산하기 위한 값.
     def calc_identity(self):
         #diagonal 행렬을 사용한 값
         self.kernel_train_identity = self.sparsifying_class.diagonal()
         mean_identity = self.kernel_test_normalized @ inv(self.kernel_train_identity) @ self.train_data['label']
         return mean_identity
 
+#kernel의 잡다한 것들을 계산하기 위한 class.
 class tools:
     def __init__(self, kernel, k_threshold):
         self.original_kernel = kernel
         self.k_threshold = k_threshold
-    #kernel을 데이터 수만큼으로 나눈 값을 -1~1 사이 값으로 바꾸고 그것을 제곱한다.
-    #0~1사이의 값이 나오게 됨
+
+    #kernel의 magnitude를 계산해주는 함수.
     def kernel_mag(self, row):
+        '''
+        kernel을 데이터 수만큼으로 나눈 값을 -1~1 사이 값으로 바꾸고 그것을 제곱한다.
+        0~1사이의 값이 나오게 됨
+        '''
         return self.normalize(row)**2
 
-    #m을 k_thresh로 나누고 -1보다 작은 값은 -1로 1보다 큰 값은 1로 바꾼다.
+    #주어진 kernel 값을 normalize 해주는 함수
     def normalize(self,m):
+        #m을 k_thresh로 나누고 -1보다 작은 값은 -1로 1보다 큰 값은 1로 바꾼다.
         return np.clip(m/self.k_threshold, -1, 1)
 
+    #sparse kernel의 대각성분에 conditioning을 곱해주는 과정.
     def conditioning(self, kernel):
-        #spase kernel의 대각선 성분의 최댓값*4로 이루어진 대각 행렬
+        # sparse kernel의 대각선 성분의 최댓값*4로 이루어진 대각 행렬
         conditioning = 4*np.amax(np.diag(kernel))*np.eye(kernel.shape[0])
-        #sparse kernel의 대각 성분을 conditioning 값만큼 더해준다.
-        #condition number를 줄이기 위한 과정. 4는 임의로 정한 값?
+        # sparse kernel의 대각 성분을 conditioning 값만큼 더해준다.
+        # condition number를 줄이기 위한 과정. 4는 임의로 정한 값?
         return kernel + conditioning
 
+    #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
     def diagonal(self):
-        #kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
-        #numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
-        #numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
-        #그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
+        '''
+        kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
+        numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
+        numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
+        그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
+        '''
         diagonal = np.diag(self.original_kernel)*np.eye(self.original_kernel.shape[0])
         return diagonal
 
-class sparsify(tools):
+#tools에 sparsification을 위한 함수들을 모아놓은 class.
+class sparsify(tools): #tools를 상속받아옴
     def __init__(self, m, sparsity, key, k_threshold): #m자리에 test/train kernel을 넣었음
         self.key = key
         self.sparsity = sparsity
         self.k_threshold = k_threshold
         self.original_kernel = m
 
-    # kernel을 받아서 확률 함수에 따라서 
+    # sparse matrix를 주어진 sparse 확률에 따라서 만들어주는 함수.
     def origin(self):
+
         #sparsify되기 전의 kernel
         m = self.original_kernel
         #원하는 sparsity(0이 아닌 항이 얼마나 많을 지)
@@ -155,22 +174,56 @@ class sparsify(tools):
         conditioned_matrix = self.conditioning(sparse_matrix)
         return conditioned_matrix
     
+    # Random sparse kernel matrix를 만들어주는 함수.
     def random(self):
+        '''
+        random mask를 생성하여 kernel과 곱하는 형식으로 random sparse matrix를 구현하는 함수.
+        여기서 mask는 random seed로 생성하여 만들어진 array에 
+        sparsity보다 작으면 1 크면 1로 조건을 걸어서 array를 생성함.
+        '''
+
+        # 원래 형태의 kernel을 받아서 m에 저장함.
         m = self.original_kernel
+        # key에 해당하는 seed 생성.
         np2.random.seed(self.key)
+        # kernel과 같은 shape의 난수로 생성된 mask를 생성함.
         mask = np2.random.random(m.shape)
+        # mask의 값이 self.sparsity보다 작다면 1로, 아니면 0으로 변경
         mask = np2.where(mask < self.sparsity, 1, 0)
+        # 정방행렬인 이상, diagonal 성분의 개수는 행 혹은 열의 개수와 동일하다.
+        # di에 행렬의 diagonal 성분의 인덱스를 저장함.
+        # https://numpy.org/doc/stable/reference/generated/numpy.diag_indices.html
         di = np2.diag_indices(m.shape[0])
+        # mask의 diagonal term들을 모두 1로 저장한다.
         mask[di] = 1
+        #original_kernel의 값에 mask를 곱해서 대각성분을 제외하고 random하게 sparsity를 갖는 kernel을 생성.
         return np.array(mask) * m    
     
+    #block diagonalization을 실시하는 과정
     def block(self):
+        '''
+        kernel matrix의 행의 개수를 sparsity로 나눈 값의 정수형을 취한다.
+        취한 값을 i에 대하여 iteration을 실시하여, block을 지정한다.
+        지정한 blocks를 이용하여 block_diag를 통하여 block_diagonalize를 실시한다.
+        
+        여기서 block_diag의 경우, block들에 대한 어레이들을 받아와서 blocks에 저장하고
+        이를 diagonal한 position에 위치시킨 후에, 나머지 요소들에 0을 채우는 형식으로 block_diagonal을 실시.
+        '''
+        
+        #kernel을 인자로 받아옴
         m = self.original_kernel
+        #kernel은 정방행렬로, 행을 들고옴
         size = int(m.shape[0])
+        #l에는 sparsity를 저장
         l = int(self.sparsity)
+
+        #행의 개수가 sparsity로 나누어 떨어지지 않는 경우에 대한 error raise
+        #자동화를 위해서 shape를 factorize해야함.
         if size % l != 0:
             raise f"size should be divided by sparsity! size{size}, sparsity{l}"
 
+        #kernel matrix에서 block diagonal을 실시할 블럭을 지정함.
+        
         blocks = [np2.array(m[i:i+l,i:i+l]) for i in range(int(size/l))]
         diag_block = block_diag(*blocks)
         return np.array(diag_block)
@@ -178,7 +231,7 @@ class sparsify(tools):
 
     
 if __name__=="__main__":
-    cfg = OmegaConf.load("MNIST.yaml")
+    cfg = OmegaConf.load("/workspace/quantum_ntk/config/MNIST.yaml")
     cfg.merge_with_cli()
     key = random.PRNGKey(12)
     k_threshold = cfg.k_threshold

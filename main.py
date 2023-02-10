@@ -25,7 +25,8 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 호출한 data_type.yaml파일을 위의 config.yaml과 OmegaConf.merge를 이용하여 합친다.
     cfg = OmegaConf.merge(cfg, model_params)    
     cfg.merge_with_cli()
-
+    print("Data Initialization completed")
+    
     #----------------------------------------------------------#
     #|             2. Getting Processed Data stage             |
     #----------------------------------------------------------#
@@ -37,6 +38,7 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     data = getattr(data_process, data_type + "_data_process") 
     data_class = data(cfg)
     datas = data_class.processed_train, data_class.processed_test 
+    print("Data Processing completed")
 
     #----------------------------------------------------------#
     #|        3. Making Kernels and its assessment             |
@@ -57,11 +59,13 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 주어진 kernel 함수를 통해서 batch등을 설정하고 그에 따른 여러 종류의 kernel을 만든다.
     # 정확히 계산된 kernel, sparse 과정을 거친 kernel, 대각 성분만 남긴 kernel을 각각 계산한다.
     kernels = make_kernel(kernel_fn=kernel_fn, cfg=cfg, data=datas)
+    print("Kernel making completed")
     #앞서 만든 Sparse kernel을 통해서 평균에 대한 계산을 진행한다.
     mean = kernels.calc_sparse() #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
 
     # 계산 결과를 통해서 kernel들의 예측값을 얻고 이를 통해서 정확도를 계산하고 결과를 저장한다.
     make_result(cfg, mean, datas[1]['label'])
+    print("Data storing...")
 
 
 

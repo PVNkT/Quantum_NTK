@@ -2,7 +2,7 @@
 
 depth: 4
 
-batch_size: 4
+batch_size: 4 #배치사이즈가 256이어야 하는거 아닌가?
 
 selection: [1,0]
 
