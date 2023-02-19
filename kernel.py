@@ -21,11 +21,8 @@ class make_kernel():
         #주어진 seed에 맞게 key를 만듬
         self.key = random.PRNGKey(cfg.seed) #[ 0 12]
         # label별 데이터 수의 최대 값
-        self.k_threshold = cfg.k_threshold
-        # sparse한 정도 (kernel의 크기에 log를 취한것에 sparsity를 곱해서 그만큼의 요소를 0으로 만듬)
-        # sparsity에 yaml파일에서 받은 설정값과 방식을 설정. 
+        self.k_threshold = cfg.k_threshold 
         # sparse method에는 origin, random, block이 존재.
-        self.sparsity = cfg.sparse.sparsity
         self.sparse_method = cfg.sparse.method
         #kernel 함수에 batch를 적용
         kernel_fn = nt.batch(kernel_fn, batch_size=cfg.batch_size)
@@ -36,18 +33,25 @@ class make_kernel():
         # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
+
+    def sparsifying(self, sparsity):
         # sparse kernel을 만든다.
         # sparsify라는 함수에 두번째 인자인 probability_function 위치에 kernel_mag라는 함수 자체를 넘겨주었음을 알아두자.
         # sparse한 행렬을 sparsify를 통해 생성하고 train데이터를 이용.
-        #class를 저장하여 getattr로 이름에 맞는 
-        self.sparsifying_class = sparsify(self.kernel_train, self.sparsity, self.key, self.k_threshold)
+        #class를 저장하여 getattr로 이름에 맞는
+        if self.sparse_method == "block":
+            sparsity = 2**sparsity 
+        self.sparsifying_class = sparsify(self.kernel_train, sparsity, self.key, self.k_threshold)
         self.sparsify = getattr(self.sparsifying_class, self.sparse_method)
+    
+    def normalize(self):
         # test kernel을 normalize한다. (데이터의 수 만큼으로 데이터를 나누고 값이 -1~1사이의 값을 가지도록 만든다. 
         # 그 후 데이터의 수만큼을 다시 곱해준다.)
         # sparsifying_class에는 tool이 상속되어져 있으므로 아래와 같은 방법으로 호출.
         normalize = getattr(self.sparsifying_class, "normalize")
         self.kernel_test_normalized = self.k_threshold*normalize(self.kernel_test)
-
+        return None
+    
     #kernel의 평균을 계산하기 위한 함수.
     def calc_exact(self):
         # 평균 계산 k_*^T K^{-1} y
@@ -57,7 +61,9 @@ class make_kernel():
         return mean
     
     #sparse kernel의 평균을 계산하기 위한 값. 
-    def calc_sparse(self):
+    def calc_sparse(self, sparsity):
+        self.sparsifying(sparsity)
+        self.normalize()
         # sparse 행렬을 사용한 값
         self.kernel_train_sparse = self.sparsify()
         mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
@@ -67,6 +73,7 @@ class make_kernel():
     def calc_identity(self):
         #diagonal 행렬을 사용한 값
         self.kernel_train_identity = self.sparsifying_class.diagonal()
+        self.normalize()
         mean_identity = self.kernel_test_normalized @ inv(self.kernel_train_identity) @ self.train_data['label']
         return mean_identity
 
@@ -181,7 +188,8 @@ class sparsify(tools): #tools를 상속받아옴
         여기서 mask는 random seed로 생성하여 만들어진 array에 
         sparsity보다 작으면 1 크면 1로 조건을 걸어서 array를 생성함.
         '''
-
+        if self.sparsity>1:
+            raise "probability should be smaller than 1"
         # 원래 형태의 kernel을 받아서 m에 저장함.
         m = self.original_kernel
         # key에 해당하는 seed 생성.

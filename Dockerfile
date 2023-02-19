@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.11.0-gpu-jupyter
+FROM tensorflow/tensorflow:2.12.0rc0-gpu-jupyter
 
 ENV TF_GPU_ALLOCATOR=cuda_malloc_async
 
@@ -21,7 +21,7 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-RUN pip install jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+RUN pip install jaxlib==0.4.4+cuda11.cudnn86 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 
 WORKDIR /workspace

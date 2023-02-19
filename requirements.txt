@@ -6,5 +6,5 @@ neural-tangents
 
 omegaconf
 
-jax == 0.3.25
+jax == 0.4.4
 

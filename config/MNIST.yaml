@@ -12,5 +12,6 @@ trial: 0
 
 sparse:
   method: origin
-  sparsity: 5
-  
+  first: 1
+  last: 2
+  term: 1

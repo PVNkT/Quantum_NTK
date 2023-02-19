@@ -7,17 +7,17 @@ read mode
 
 if [ $mode == 'random' ]
 then
-    source /workspace/quantum_ntk/bash/sparsity_random.sh
+    source ./bash/sparsity_random.sh
     sparsity_random
 
 elif [ $mode == 'origin' ]
 then
-    source /workspace/quantum_ntk/bash/sparsity_origin.sh
+    source ./bash/sparsity_origin.sh
     sparsity_origin
 
 elif [ $mode == 'block' ]
 then
-    source /workspace/quantum_ntk/bash/sparsity_block.sh
+    source ./bash/sparsity_block.sh
     sparsity_block
 
 fi

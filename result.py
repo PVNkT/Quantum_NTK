@@ -1,11 +1,10 @@
 import csv
-
 import jax.numpy as np
 
 from utils import csv_append, npy_save
 
 class make_result:
-    def __init__(self, cfg, means, labels):
+    def __init__(self, cfg, means, labels, sparsity):
         #여러 형태의 kernel에 대해 계산한 평균값을 불러옴
         #main에서 mean = kernels.calc_sparse()를 인자로 넣었음.
         #즉, sparse kernel의 평균값을 인자로 제공함.
@@ -13,6 +12,7 @@ class make_result:
         #label들을 불러옴
         self.cfg = cfg
         self.labels =labels
+        self.sparsity = round(sparsity, 3)
         #평균을 기반으로 각 kernel로 계산한 값의 정확도를 계산함
         #classify는 ntk_mean을 이용하여 0인지 1인지를 계산함.
         #그리고 이를 기반으로 참인지 거짓인지 labels의 1번째 요소 (참인지 여부)와 대조
@@ -21,17 +21,17 @@ class make_result:
         self.sparse_mode = cfg.sparse.method
 
         # 계산된 정확도를 출력
-        print(f'sparsity {cfg.sparse.sparsity} accuracy:', acc)
+        print(f'sparsity {self.sparsity} accuracy:', acc)
         # 계산 결과를 csv파일로 저장
-        with csv_append(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output.csv') as wr:
-            wr.writerow([cfg.sparse.sparsity, acc, cfg.seed])
+        with csv_append(f'accuracy/{self.sparse_mode}/{self.sparse_mode}_sparse_output_{self.cfg.seed}.csv') as wr:
+            wr.writerow([self.sparsity, acc])
 
         self.save_result()
 
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
     def path(self):
         cfg = self.cfg
-        path_str = f'./output/{cfg.data}_method_{self.sparse_mode}_sparsity_{cfg.sparse.sparsity}_seed_{cfg.seed}_select_{cfg.selection}_depth_{cfg.depth}_data_{cfg.k_threshold}_trial_{cfg.trial}'
+        path_str = f'./output/{cfg.data}_method_{self.sparse_mode}_sparsity_{self.sparsity}_seed_{cfg.seed}_select_{cfg.selection}_depth_{cfg.depth}_data_{cfg.k_threshold}_trial_{cfg.trial}'
         return path_str
     
     # kernel을 통해서 얻은 평균값을 통해서 어떤 값으로 예측하였는지를 확인하는 함수

@@ -17,7 +17,7 @@ def csv_append(path_str):
     wr = csv.writer(f)
 
     if New:
-        wr.writerow(['sparsity','accuracy','seed'])
+        wr.writerow(['sparsity','accuracy'])
         
     yield wr
 

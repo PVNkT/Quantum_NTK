@@ -1,6 +1,6 @@
 
 from omegaconf import OmegaConf
-
+import numpy as np
 import data_process
 import network
 from kernel import make_kernel
@@ -60,14 +60,15 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 정확히 계산된 kernel, sparse 과정을 거친 kernel, 대각 성분만 남긴 kernel을 각각 계산한다.
     kernels = make_kernel(kernel_fn=kernel_fn, cfg=cfg, data=datas)
     print("Kernel making completed")
-    #앞서 만든 Sparse kernel을 통해서 평균에 대한 계산을 진행한다.
-    mean = kernels.calc_sparse() #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
+    sparse = cfg.sparse
 
-    # 계산 결과를 통해서 kernel들의 예측값을 얻고 이를 통해서 정확도를 계산하고 결과를 저장한다.
-    make_result(cfg, mean, datas[1]['label'])
-    print("Data storing...")
+    for sparsity in np.arange(*tuple(dict(sparse).values())[1:]):
+        #앞서 만든 Sparse kernel을 통해서 평균에 대한 계산을 진행한다.
+        mean = kernels.calc_sparse(sparsity) #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
 
-
+        # 계산 결과를 통해서 kernel들의 예측값을 얻고 이를 통해서 정확도를 계산하고 결과를 저장한다.
+        make_result(cfg, mean, datas[1]['label'], sparsity)
+        print(f"sparsity: {sparsity} Data storing...")
 
 
 if __name__ == "__main__":
