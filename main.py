@@ -62,6 +62,7 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     print("Kernel making completed")
     sparse = cfg.sparse
 
+
     for sparsity in np.arange(*tuple(dict(sparse).values())[1:]):
         #앞서 만든 Sparse kernel을 통해서 평균에 대한 계산을 진행한다.
         mean = kernels.calc_sparse(sparsity) #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
@@ -69,7 +70,6 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
         # 계산 결과를 통해서 kernel들의 예측값을 얻고 이를 통해서 정확도를 계산하고 결과를 저장한다.
         make_result(cfg, mean, datas[1]['label'], sparsity)
         print(f"sparsity: {sparsity} Data storing...")
-
 
 if __name__ == "__main__":
     main()

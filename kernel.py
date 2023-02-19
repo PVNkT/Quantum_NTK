@@ -69,13 +69,6 @@ class make_kernel():
         mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
         return mean_sparse
 
-    #diagonal kernel의 평균을 계산하기 위한 값.
-    def calc_identity(self):
-        #diagonal 행렬을 사용한 값
-        self.kernel_train_identity = self.sparsifying_class.diagonal()
-        self.normalize()
-        mean_identity = self.kernel_test_normalized @ inv(self.kernel_train_identity) @ self.train_data['label']
-        return mean_identity
 
 #kernel의 잡다한 것들을 계산하기 위한 class.
 class tools:
@@ -103,17 +96,6 @@ class tools:
         # sparse kernel의 대각 성분을 conditioning 값만큼 더해준다.
         # condition number를 줄이기 위한 과정. 4는 임의로 정한 값?
         return kernel + conditioning
-
-    #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
-    def diagonal(self):
-        '''
-        kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
-        numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
-        numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
-        그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
-        '''
-        diagonal = np.diag(self.original_kernel)*np.eye(self.original_kernel.shape[0])
-        return diagonal
 
 #tools에 sparsification을 위한 함수들을 모아놓은 class.
 class sparsify(tools): #tools를 상속받아옴
@@ -236,16 +218,31 @@ class sparsify(tools): #tools를 상속받아옴
         diag_block = block_diag(*blocks)
         return np.array(diag_block)
 
-
+    #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
+    def diagonal(self):
+        '''
+        kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
+        numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
+        numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
+        그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
+        '''
+        N = int(self.original_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(self.original_kernel))
+        for i in range(1,self.sparsity+1):
+            diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
+            diagonal += np.diag(np.diag(self.original_kernel,k=-i),k=-i)
+        return diagonal
+    
     
 if __name__=="__main__":
-    cfg = OmegaConf.load("/workspace/quantum_ntk/config/MNIST.yaml")
+    cfg = OmegaConf.load("./config/MNIST.yaml")
     cfg.merge_with_cli()
     key = random.PRNGKey(12)
     k_threshold = cfg.k_threshold
-    sparsity = 2
+    sparsity = 1
     m = np2.ones((256,256))
-    print(sparsify(m, sparsity, key, k_threshold).block())
+    print(sparsify(m, sparsity, key, k_threshold).diagonal())
 
 
 
