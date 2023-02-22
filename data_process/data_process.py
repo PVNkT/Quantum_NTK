@@ -154,3 +154,20 @@ class sphere_data_process:
 
         # train과 test 데이터를 반환
         return train, test
+
+
+if __name__ == "__main__":
+    from omegaconf import OmegaConf
+    cfg = OmegaConf.load("config/config.yaml")
+    data_type = str(cfg.data) # cfg에 들어있는 config.yaml로부터 data라는 key로 value를 호출함.
+    # data의 종류에 따라서 필요한 parameter들을 불러와서 cli명령과 합침
+    model_params = OmegaConf.load(f"config/{data_type}.yaml") #data_type에 맞는 yaml파일을 호출함.
+    # 호출한 data_type.yaml파일을 위의 config.yaml과 OmegaConf.merge를 이용하여 합친다.
+    cfg = OmegaConf.merge(cfg, model_params)
+    cfg.merge_with_cli()
+    data_class = MNIST_data_process(cfg)  
+    train_set = data_class.train_set
+    print(data_class.processed_train)
+    
+
+
