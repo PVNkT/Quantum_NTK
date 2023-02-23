@@ -58,7 +58,7 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 위에서 구한 kernel의 구조를 기반으로 아래에서 kernel에 대한 numerical한 계산을 실시함.
     # 주어진 kernel 함수를 통해서 batch등을 설정하고 그에 따른 여러 종류의 kernel을 만든다.
     # 정확히 계산된 kernel, sparse 과정을 거친 kernel, 대각 성분만 남긴 kernel을 각각 계산한다.
-    kernels = make_kernel(kernel_fn=kernel_fn, cfg=cfg, data=datas)
+    kernels = make_kernel(kernel_fn=kernel_fn, cfg=cfg, data=datas, hhl=True)
     print("Kernel making completed")
     sparse = cfg.sparse
 

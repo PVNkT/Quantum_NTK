@@ -6,9 +6,13 @@ from jax.numpy.linalg import inv
 from scipy.linalg import block_diag
 from omegaconf import OmegaConf
 
+from hhl.solver import HHL_my
+
+import ipdb
+
 #kernel 생성을 위한 class.
 class make_kernel():
-    def __init__(self, kernel_fn, cfg, data):
+    def __init__(self, kernel_fn, cfg, data, hhl=False):
         '''
         <생성되는 커널들>
         1. self.kernel_train : 훈련데이터를 이용해 정확하게 계산된 커널
@@ -33,6 +37,7 @@ class make_kernel():
         # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
+        self.hhl = hhl 
 
     def sparsifying(self, sparsity):
         # sparse kernel을 만든다.
@@ -56,8 +61,11 @@ class make_kernel():
     def calc_exact(self):
         # 평균 계산 k_*^T K^{-1} y
         # 정확한 kernel을 사용해 계산한 값
-        
-        mean = self.kernel_test @ inv(self.kernel_train) @ self.train_data['label']
+        if self.hhl == False:
+            mean = self.kernel_test @ inv(self.kernel_train) @ self.train_data['label']
+        else :
+            ipdb.set_trace()
+            mean = self.kernel_test @ HHL_my(self.kernel_train, self.train_data['label'], wrap = True, measurement = None)
         return mean
     
     #sparse kernel의 평균을 계산하기 위한 값. 
@@ -66,7 +74,25 @@ class make_kernel():
         self.normalize()
         # sparse 행렬을 사용한 값
         self.kernel_train_sparse = self.sparsify()
-        mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
+        if self.hhl == False:
+            #ipdb.set_trace()
+            mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
+        else :
+            '''
+            calculate column by column
+            this method is for binary classification. 
+            for more class problem, this method must be revised!
+            jax에서 제공하는 Devicearray를 이용하나, np.array로 바꿔서 작업하나 결과는 이상이 없음.
+            다만 train_data의 형타입을 int로 맞춰야 작업이 돌아감.
+            '''
+
+            train_data = np2.array(self.train_data['label'],dtype=int) #self.train_data['label'][:,0]
+            #ipdb.set_trace()
+            col_1 = self.kernel_test_normalized @ HHL_my(self.kernel_train_sparse, train_data[:,0], wrap = True, measurement = None)
+            col_2 = self.kernel_test_normalized @ HHL_my(self.kernel_train_sparse, train_data[:,1], wrap = True, measurement = None)
+            #ipdb.set_trace()
+            mean_sparse = np.vstack((col_1,col_2)).T
+            print("check:",mean_sparse)
         return mean_sparse
 
 
