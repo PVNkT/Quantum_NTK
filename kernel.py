@@ -12,7 +12,7 @@ import ipdb
 
 #kernel 생성을 위한 class.
 class make_kernel():
-    def __init__(self, kernel_fn, cfg, data, hhl=False):
+    def __init__(self, kernel_fn, cfg, data):
         '''
         <생성되는 커널들>
         1. self.kernel_train : 훈련데이터를 이용해 정확하게 계산된 커널
@@ -37,7 +37,7 @@ class make_kernel():
         # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
-        self.hhl = hhl 
+        self.hhl = cfg.hhl 
 
     def sparsifying(self, sparsity):
         # sparse kernel을 만든다.
@@ -213,7 +213,9 @@ class sparsify(tools): #tools를 상속받아옴
         # mask의 diagonal term들을 모두 1로 저장한다.
         mask[di] = 1
         #original_kernel의 값에 mask를 곱해서 대각성분을 제외하고 random하게 sparsity를 갖는 kernel을 생성.
-        return np.array(mask) * m    
+        kernel = np.array(mask) * m
+        conditioned_matirx = self.conditioning(kernel)
+        return conditioned_matirx    
     
     #block diagonalization을 실시하는 과정
     def block(self):
@@ -242,7 +244,8 @@ class sparsify(tools): #tools를 상속받아옴
         
         blocks = [np2.array(m[i:i+l,i:i+l]) for i in range(int(size/l))]
         diag_block = block_diag(*blocks)
-        return np.array(diag_block)
+        conditioned_matrix = self.conditioning(np.array(diag_block))
+        return conditioned_matrix
 
     #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
     def diagonal(self):
