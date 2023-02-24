@@ -261,7 +261,8 @@ class sparsify(tools): #tools를 상속받아옴
         for i in range(1,self.sparsity+1):
             diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
             diagonal += np.diag(np.diag(self.original_kernel,k=-i),k=-i)
-        return diagonal
+        conditioned_matrix = self.conditioning(diagonal)
+        return conditioned_matrix
     
     
 if __name__=="__main__":
