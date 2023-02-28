@@ -36,6 +36,7 @@ class make_kernel():
         # hence, we evaluate k_*^T K^{-1} y manually
         # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
+        np.save('/workspace/kernel_train.npy',self.kernel_train)
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
         self.hhl = cfg.hhl 
 
@@ -64,7 +65,7 @@ class make_kernel():
         if self.hhl == False:
             mean = self.kernel_test @ inv(self.kernel_train) @ self.train_data['label']
         else :
-            ipdb.set_trace()
+            #ipdb.set_trace()
             mean = self.kernel_test @ HHL_my(self.kernel_train, self.train_data['label'], wrap = True, measurement = None)
         return mean
     
@@ -132,7 +133,7 @@ class sparsify(tools): #tools를 상속받아옴
         self.original_kernel = m
 
     # sparse matrix를 주어진 sparse 확률에 따라서 만들어주는 함수.
-    def origin(self):
+    def origin(self): #decipriated!
 
         #sparsify되기 전의 kernel
         m = self.original_kernel
@@ -141,7 +142,7 @@ class sparsify(tools): #tools를 상속받아옴
         probability_function = self.kernel_mag
         #주어진 matrix와 같은 모양의 0으로된 행렬
         out = np2.zeros(m.shape)
-        #주어진 행렬을 array로 바꿈
+        #주어진 kernel을 array로 바꿈
         m2 = np2.array(m)
         
         '''
@@ -171,7 +172,8 @@ class sparsify(tools): #tools를 상속받아옴
             #키를 2개로 나눔
             key, p_key = random.split(self.key, 2)
             #랜덤하게 0이 되지 않을 위치를 정한다. (중복되지 않도록)
-            nonzero_indices = random.choice(p_key, np.arange(len(m)), shape=(target_sparsity,), replace=False, p=probs)
+            #ipdb.set_trace()
+            nonzero_indices = random.choice(p_key, np.arange(len(m)), shape=(target_sparsity,), replace=False, p=probs) #주어진 kernel element 값에 따라서 0이 될 확률이 정해짐.
             #i가 nonzero_indice에 포함되지 않을 경우 포함시킨다. (대각 성분은 0이 되지 않게 한다.)
             if i not in nonzero_indices:
                 nonzero_indices = np.concatenate((nonzero_indices, np.array([i])))
@@ -186,8 +188,8 @@ class sparsify(tools): #tools를 상속받아옴
         #sparse matrix
         sparse_matrix = np.array(out)
         #conditioning을 진행
-        conditioned_matrix = self.conditioning(sparse_matrix)
-        return conditioned_matrix
+        self.conditioned_matrix = self.conditioning(sparse_matrix)
+        return self.conditioned_matrix
     
     # Random sparse kernel matrix를 만들어주는 함수.
     def random(self):
@@ -214,8 +216,8 @@ class sparsify(tools): #tools를 상속받아옴
         mask[di] = 1
         #original_kernel의 값에 mask를 곱해서 대각성분을 제외하고 random하게 sparsity를 갖는 kernel을 생성.
         kernel = np.array(mask) * m
-        conditioned_matirx = self.conditioning(kernel)
-        return conditioned_matirx    
+        self.conditioned_matirx = self.conditioning(kernel)
+        return self.conditioned_matirx    
     
     #block diagonalization을 실시하는 과정
     def block(self):
@@ -244,8 +246,8 @@ class sparsify(tools): #tools를 상속받아옴
         
         blocks = [np2.array(m[i:i+l,i:i+l]) for i in range(int(size/l))]
         diag_block = block_diag(*blocks)
-        conditioned_matrix = self.conditioning(np.array(diag_block))
-        return conditioned_matrix
+        self.conditioned_matrix = self.conditioning(np.array(diag_block))
+        return self.conditioned_matrix
 
     #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
     def diagonal(self):
@@ -261,18 +263,44 @@ class sparsify(tools): #tools를 상속받아옴
         for i in range(1,self.sparsity+1):
             diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
             diagonal += np.diag(np.diag(self.original_kernel,k=-i),k=-i)
-        conditioned_matrix = self.conditioning(diagonal)
-        return conditioned_matrix
+        self.conditioned_matrix = self.conditioning(diagonal)
+        return self.conditioned_matrix
     
+    #kernel의 element들을 크기별로 나열하여 작은 순서대로 나열하여 순차적으로 0으로 만듦
+    def threshold(self):
+        l = self.sparsity
+        m = self.original_kernel
+        diagonal = np.zeros((m.shape))
+        #diagonal element들로만 구성된 행렬 구성
+        diagonal += np.diag(np.diag(self.original_kernel))
+        #element들의 크기순대로 인덱스를 가져오기
+        ind = np2.unravel_index(m.argsort(axis=None), m.shape)
+        #sparsity로 array slicing 실시
+        ind = ind[0][:l], ind[1][:l]
+        
+        #mask 생성
+        mask = np2.ones(m.shape)
+        #slicing한 인덱스들을 0으로 만듦
+        mask[ind]=0
+        #mask의 diagonal element들을 0으로 만듦
+        mask[np2.diag_indices_from(mask)] = 0
+        #original kernel에 mask를 곱함
+        ths_kernel = np2.array(mask) * m
+        #빠졌던 diagonal element들에 따로 저장해놓은 diagonal element들을 저장함.
+        ths_kernel += diagonal
+        return ths_kernel
+
     
 if __name__=="__main__":
     cfg = OmegaConf.load("./config/MNIST.yaml")
     cfg.merge_with_cli()
     key = random.PRNGKey(12)
     k_threshold = cfg.k_threshold
-    sparsity = 1
-    m = np2.ones((256,256))
-    print(sparsify(m, sparsity, key, k_threshold).diagonal())
+    sparsity = 15
+    #m = np2.ones((5,5))#(256,256)
+    m = np2.random.rand(5,5)
+    kernel = sparsify(m, sparsity, key, k_threshold).threshold()
+    np.save('/workspace/thstestkernel',kernel)
 
 
 
