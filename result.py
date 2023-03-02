@@ -19,11 +19,11 @@ class make_result:
         #그리고 맞는 경우의 점수를 np.sum으로 계산하고 이를 label의 개수로 나눔.
         acc = np.sum(self.classify(self.mean) == labels[:, 0])/len(labels)
         self.sparse_mode = cfg.sparse.method
-
+        self.selection = cfg.selection
         # 계산된 정확도를 출력
         print(f'sparsity {self.sparsity} accuracy:', acc)
         # 계산 결과를 csv파일로 저장
-        with csv_append(f'accuracy/{self.sparse_mode}/csv_files/{self.sparse_mode}_sparse_output_{self.cfg.seed}.csv') as wr:
+        with csv_append(f'accuracy/{self.selection}/{self.sparse_mode}/csv_files/{self.sparse_mode}_sparse_output_{self.cfg.seed}.csv') as wr:
             wr.writerow([self.sparsity, acc])
 
         self.save_result()
@@ -31,7 +31,7 @@ class make_result:
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
     def path(self):
         cfg = self.cfg
-        path_str = f'./output/{cfg.data}/{cfg.selection}/{self.sparse_mode}/sparsity_{self.sparsity}_seed_{cfg.seed}_data_{cfg.k_threshold}_trial_{cfg.trial}'
+        path_str = f'./output/{cfg.data}/{self.selection}/{self.sparse_mode}/sparsity_{self.sparsity}_seed_{cfg.seed}_data_{cfg.k_threshold}_trial_{cfg.trial}'
         return path_str
     
     # kernel을 통해서 얻은 평균값을 통해서 어떤 값으로 예측하였는지를 확인하는 함수

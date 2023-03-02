@@ -7,7 +7,7 @@ from scipy.linalg import block_diag
 from omegaconf import OmegaConf
 
 from hhl.solver import HHL_my
-
+from utils import npy_save
 import ipdb
 
 #kernel 생성을 위한 class.
@@ -23,7 +23,8 @@ class make_kernel():
         '''
 
         #주어진 seed에 맞게 key를 만듬
-        self.key = random.PRNGKey(cfg.seed) #[ 0 12]
+        self.seed = cfg.seed
+        self.key = random.PRNGKey(self.seed) #[ 0 12]
         # label별 데이터 수의 최대 값
         self.k_threshold = cfg.k_threshold 
         # sparse method에는 origin, random, block이 존재.
@@ -36,9 +37,11 @@ class make_kernel():
         # hence, we evaluate k_*^T K^{-1} y manually
         # kernel에 train, test이미지를 적용하여 train, test 데이터에 대한 kernel을 만든다. 
         self.kernel_train = kernel_fn(self.train_data['image'], self.train_data['image'], 'ntk')
-        np.save('/workspace/kernel_train.npy',self.kernel_train)
+        self.selection = cfg.selection
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
-        self.hhl = cfg.hhl 
+        self.hhl = cfg.hhl
+        with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_test.npy', self.kernel_test) as npy:
+            npy
 
     def sparsifying(self, sparsity):
         # sparse kernel을 만든다.
@@ -49,7 +52,7 @@ class make_kernel():
             sparsity = 2**sparsity 
         self.sparsifying_class = sparsify(self.kernel_train, sparsity, self.key, self.k_threshold)
         self.sparsify = getattr(self.sparsifying_class, self.sparse_method)
-    
+
     def normalize(self):
         # test kernel을 normalize한다. (데이터의 수 만큼으로 데이터를 나누고 값이 -1~1사이의 값을 가지도록 만든다. 
         # 그 후 데이터의 수만큼을 다시 곱해준다.)
@@ -75,6 +78,9 @@ class make_kernel():
         self.normalize()
         # sparse 행렬을 사용한 값
         self.kernel_train_sparse = self.sparsify()
+        with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_train_{sparsity}.npy', self.kernel_train_sparse) as npy:
+            npy
+
         if self.hhl == False:
             #ipdb.set_trace()
             mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
@@ -270,24 +276,21 @@ class sparsify(tools): #tools를 상속받아옴
     def threshold(self):
         l = self.sparsity
         m = self.original_kernel
-        diagonal = np.zeros((m.shape))
-        #diagonal element들로만 구성된 행렬 구성
-        diagonal += np.diag(np.diag(self.original_kernel))
         #element들의 크기순대로 인덱스를 가져오기
         ind = np2.unravel_index(m.argsort(axis=None), m.shape)
         #sparsity로 array slicing 실시
         ind = ind[0][:l], ind[1][:l]
         
         #mask 생성
-        mask = np2.ones(m.shape)
+        mask = np2.zeros(m.shape)
         #slicing한 인덱스들을 0으로 만듦
-        mask[ind]=0
+        mask[ind]=1
         #mask의 diagonal element들을 0으로 만듦
         mask[np2.diag_indices_from(mask)] = 0
         #original kernel에 mask를 곱함
         ths_kernel = np2.array(mask) * m
         #빠졌던 diagonal element들에 따로 저장해놓은 diagonal element들을 저장함.
-        ths_kernel += diagonal
+        ths_kernel += np.diag(np.diag(self.original_kernel))
         return ths_kernel
 
     
