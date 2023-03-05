@@ -222,8 +222,8 @@ class sparsify(tools): #tools를 상속받아옴
         mask[di] = 1
         #original_kernel의 값에 mask를 곱해서 대각성분을 제외하고 random하게 sparsity를 갖는 kernel을 생성.
         kernel = np.array(mask) * m
-        self.conditioned_matirx = self.conditioning(kernel)
-        return self.conditioned_matirx    
+        #self.conditioned_matirx = self.conditioning(kernel)
+        return kernel#self.conditioned_matirx    
     
     #block diagonalization을 실시하는 과정
     def block(self):
@@ -252,8 +252,8 @@ class sparsify(tools): #tools를 상속받아옴
         
         blocks = [np2.array(m[i:i+l,i:i+l]) for i in range(int(size/l))]
         diag_block = block_diag(*blocks)
-        self.conditioned_matrix = self.conditioning(np.array(diag_block))
-        return self.conditioned_matrix
+        #self.conditioned_matrix = self.conditioning(np.array(diag_block))
+        return diag_block#self.conditioned_matrix
 
     #diagonal 항만 남겨서 kernel matrix를 만들어주는 함수.
     def diagonal(self):
@@ -269,8 +269,8 @@ class sparsify(tools): #tools를 상속받아옴
         for i in range(1,self.sparsity+1):
             diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
             diagonal += np.diag(np.diag(self.original_kernel,k=-i),k=-i)
-        self.conditioned_matrix = self.conditioning(diagonal)
-        return self.conditioned_matrix
+        #self.conditioned_matrix = self.conditioning(diagonal)
+        return diagonal#self.conditioned_matrix
     
     #kernel의 element들을 크기별로 나열하여 작은 순서대로 나열하여 순차적으로 0으로 만듦
     def threshold(self):
