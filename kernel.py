@@ -293,7 +293,37 @@ class sparsify(tools): #tools를 상속받아옴
         ths_kernel += np.diag(np.diag(self.original_kernel))
         return ths_kernel
 
+    def row(self):
+        n = self.sparsity
+        m = np2.array(self.original_kernel)
+
+        row_kernel = self.original_kernel
+        m[n:, :] = 0
+        m += np2.diag(np2.diag(row_kernel))
+               
+        return np.array(m)
     
+    def column(self):
+        n = self.sparsity
+        m = np2.array(self.original_kernel)
+
+        column_kernel = self.original_kernel 
+        m[:, n:] = 0
+        m += np2.diag(np2.diag(column_kernel))
+               
+        return np.array(m)
+    
+    def anti_diagonal(self):
+        flipped_kernel = np.fliplr(self.original_kernel)
+        N = int(flipped_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(flipped_kernel))
+        for i in range(1,self.sparsity+1):
+            diagonal += np.diag(np.diag(flipped_kernel,k=i),k=i)
+            diagonal += np.diag(np.diag(flipped_kernel,k=-i),k=-i)
+        kernel = np.fliplr(diagonal)
+        return kernel
+
 if __name__=="__main__":
     cfg = OmegaConf.load("./config/MNIST.yaml")
     cfg.merge_with_cli()
@@ -301,10 +331,10 @@ if __name__=="__main__":
     k_threshold = cfg.k_threshold
     sparsity = 15
     #m = np2.ones((5,5))#(256,256)
-    m = np2.random.rand(5,5)
-    kernel = sparsify(m, sparsity, key, k_threshold).threshold()
-    np.save('/workspace/thstestkernel',kernel)
-
+    m = np2.ones((256, 256))
+    kernel = sparsify(m, sparsity, key, k_threshold).column()
+    #np.save('/workspace/thstestkernel',kernel)
+    print(kernel)
 
 
 
