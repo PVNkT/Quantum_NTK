@@ -31,7 +31,7 @@ class make_result:
     # 설정값을 기반으로 저장할 파일의 이름을 만드는 함수
     def path(self):
         cfg = self.cfg
-        path_str = f'./output/{cfg.data}/{self.selection}/{self.sparse_mode}/sparsity_{self.sparsity}_seed_{cfg.seed}_data_{cfg.k_threshold}_trial_{cfg.trial}'
+        path_str = f'./output/{cfg.data}/{self.selection}/{self.sparse_mode}/seed_{cfg.seed}/sparsity_{self.sparsity}_data_{cfg.k_threshold}_trial_{cfg.trial}'
         return path_str
     
     # kernel을 통해서 얻은 평균값을 통해서 어떤 값으로 예측하였는지를 확인하는 함수
@@ -52,7 +52,7 @@ class make_result:
         # self.labels와 self.mean을 저장함.
         with npy_save(prefix + 'labels.npy', self.labels) as npy:
             npy
-        with npy_save(prefix + '.npy', self.mean) as npy:
+        with npy_save(prefix + '.npy', self.classify(self.mean)) as npy:
             npy
 
 

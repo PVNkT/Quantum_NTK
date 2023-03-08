@@ -82,7 +82,7 @@ class make_kernel():
             npy
 
         if self.hhl == False:
-            #ipdb.set_trace()
+            
             mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
         else :
             '''
@@ -293,46 +293,188 @@ class sparsify(tools): #tools를 상속받아옴
         ths_kernel += np.diag(np.diag(self.original_kernel))
         return ths_kernel
 
+    def half_diagonal(self):
+        """
+        left upper diagonal elements whose index is less than sparsity
+        """
+        N = int(self.original_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(self.original_kernel))
+        for i in range(1,self.sparsity+1):
+            diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
+        #self.conditioned_matrix = self.conditioning(diagonal)
+        return diagonal#self.conditioned_matrix
+    
     def row(self):
+        """
+        left row elements whose index is less than sparsity  
+        """
         n = self.sparsity
         m = np2.array(self.original_kernel)
 
-        row_kernel = self.original_kernel
+        # make diagoanl elements to avoid double counting
         m[n:, :] = 0
-        m += np2.diag(np2.diag(row_kernel))
+        # add diagonal elements
+        m += np2.diag(np2.diag(self.original_kernel))
                
         return np.array(m)
     
     def column(self):
+        """
+        left column elements whose index is less than sparsity
+        """
         n = self.sparsity
         m = np2.array(self.original_kernel)
 
         column_kernel = self.original_kernel 
+        # make diagoanl elements to avoid double counting
         m[:, n:] = 0
+        # add diagonal elements
         m += np2.diag(np2.diag(column_kernel))
                
         return np.array(m)
     
     def anti_diagonal(self):
+        """
+        left anti_diagonal elements whose index is less than sparsity
+        """
+        # flip kernel to make anti-diagonal form
         flipped_kernel = np.fliplr(self.original_kernel)
+        # make diagonal kernel on fliped kernel
         N = int(flipped_kernel.shape[0])
         diagonal = np.zeros((N,N))
         diagonal += np.diag(np.diag(flipped_kernel))
         for i in range(1,self.sparsity+1):
             diagonal += np.diag(np.diag(flipped_kernel,k=i),k=i)
             diagonal += np.diag(np.diag(flipped_kernel,k=-i),k=-i)
+        #flip again to make anti-diagonal
         kernel = np.fliplr(diagonal)
         return kernel
+
+    def half_anti_diagoanl(self):
+        """
+        left upper anti_diagonal elements whose index is less than sparsity
+        """
+        # flip kernel to make anti-diagonal form
+        flipped_kernel = np.fliplr(self.original_kernel)
+        # make half diagonal kernel on fliped kernel
+        N = int(flipped_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(flipped_kernel))
+        for i in range(1,self.sparsity+1):
+            diagonal += np.diag(np.diag(flipped_kernel,k=i),k=i)
+        #flip again to make anti-diagonal
+        kernel = np.fliplr(diagonal)
+        return kernel
+
+    def single_row(self):
+        """
+        left one row elements and diagonal elements 
+        """
+        n = self.sparsity
+        m = np2.array(self.original_kernel)
+        # make all elements zero except nth row 
+        m[n:, :] = 0
+        m[:n-1, :] = 0
+        # to avoid double counting
+        m[n-1,n-1] = 0
+        # add diagonal elements
+        m += np2.diag(np2.diag(self.original_kernel)) 
+        return np.array(m)
+        
+    def single_column(self):
+        """
+        left one column elements and diagoanl elements
+        """
+        n = self.sparsity
+        m = np2.array(self.original_kernel)
+        # make all elements zero except nth column
+        m[n:, :] = 0
+        m[:n-1, :] = 0
+        # to avoid double counting
+        m[n-1,n-1] = 0
+        # add diagonal elements
+        m += np2.diag(np2.diag(self.original_kernel)) 
+        return np.array(m)
+        
+    def half_single_diagonal(self):
+        """
+        left one i(named sparsity)th diagoanl elements and diagoanl elements
+        """
+        N = int(self.original_kernel.shape[0])
+        i = self.sparsity
+        diagonal = np.zeros((N,N))
+        # add diagonal elements
+        diagonal += np.diag(np.diag(self.original_kernel))
+        # add ith diagonal elements
+        diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
+        #self.conditioned_matrix = self.conditioning(diagonal)
+        return diagonal#self.conditioned_matrix
+    
+    def single_diagonal(self):
+        """
+        left two symetric diagonal elements and diagonal elements
+        """
+        # calculate half_single_diagoanl
+        half_dig = self.half_single_diagonal()
+        i = self.sparsity
+        # add symmetric diagonal elements
+        sig_dig = half_dig + np.diag(np.diag(self.original_kernel,k=-i),k=-i)
+        return sig_dig
+
+    def half_single_anti_diagonal(self):
+        """
+        left one i(named sparsity)th anti-diagonal elements and anti-diagonal elements
+        """
+        # filp matrix to make anti-diagonal
+        flipped_kernel = np.fliplr(self.original_kernel)
+        #diagonal process
+        N = int(flipped_kernel.shape[0])
+        i = self.sparsity
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(flipped_kernel))
+        diagonal += np.diag(np.diag(flipped_kernel,k=i),k=i)
+        # reflip
+        kernel = np.fliplr(diagonal)
+        return kernel
+    
+    def single_anti_diagoanl(self):
+        """
+        left two symmetric anti-diagonal elements and anti diagonal elements
+        """
+        # calculate the half_single_anti_diagonal
+        half_dig = self.half_single_anti_diagonal()
+        i = self.sparsity
+        # flip original kernel to make symmetric anti-diagonal elements
+        flip = np.fliplr(self.original_kernel)
+        # add symmetric anti-diagonal elements
+        sig_dig = half_dig + np.diag(np.diag(flip,k=-i),k=-i)
+        return sig_dig
+    
+    def double_diagonal(self):
+        """
+        left diagonal elements 
+        and anti-diagonal elements whose index is less than sparsity
+        """
+        # calculate anti_diagonal kernel
+        anti_diagonal = self.anti_diagonal()
+        # to avoid double counting
+        anti_diagonal -= np.diag(np.diag(anti_diagonal))
+        # add diagonal elements
+        anti_diagonal += np.diag(np.diag(self.original_kernel))
+        return anti_diagonal
+
+
 
 if __name__=="__main__":
     cfg = OmegaConf.load("./config/MNIST.yaml")
     cfg.merge_with_cli()
     key = random.PRNGKey(12)
     k_threshold = cfg.k_threshold
-    sparsity = 15
+    sparsity = 2
     #m = np2.ones((5,5))#(256,256)
     m = np2.ones((256, 256))
-    kernel = sparsify(m, sparsity, key, k_threshold).column()
+    kernel = sparsify(m, sparsity, key, k_threshold).single_anti_diagonal()
     #np.save('/workspace/thstestkernel',kernel)
     print(kernel)
 
