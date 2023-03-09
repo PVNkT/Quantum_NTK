@@ -3,3 +3,7 @@ data: MNIST #sphere
 seed: 12
 
 hhl: False
+
+save:
+  kernel: False
+  output: False

@@ -50,10 +50,11 @@ class make_result:
     def save_result(self):
         prefix = self.path()
         # self.labels와 self.mean을 저장함.
-        with npy_save(prefix + 'labels.npy', self.labels) as npy:
-            npy
-        with npy_save(prefix + '.npy', self.classify(self.mean)) as npy:
-            npy
+        if self.cfg.save.output:
+            with npy_save(prefix + 'labels.npy', self.labels) as npy:
+                npy
+            with npy_save(prefix + '.npy', self.classify(self.mean)) as npy:
+                npy
 
 
 

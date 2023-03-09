@@ -40,8 +40,10 @@ class make_kernel():
         self.selection = cfg.selection
         self.kernel_test = kernel_fn(self.test_data['image'], self.train_data['image'], 'ntk')
         self.hhl = cfg.hhl
-        with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_test.npy', self.kernel_test) as npy:
-            npy
+        self.save_kernel = cfg.save.kernel
+        if self.save_kernel:
+            with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_test.npy', self.kernel_test) as npy:
+                npy
 
     def sparsifying(self, sparsity):
         # sparse kernel을 만든다.
@@ -78,8 +80,9 @@ class make_kernel():
         self.normalize()
         # sparse 행렬을 사용한 값
         self.kernel_train_sparse = self.sparsify()
-        with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_train_{sparsity}.npy', self.kernel_train_sparse) as npy:
-            npy
+        if self.save_kernel:
+            with npy_save(f'/workspace/kernel/{self.selection}/{self.sparse_method}/{self.seed}/kernel_train_{sparsity}.npy', self.kernel_train_sparse) as npy:
+                npy
 
         if self.hhl == False:
             
