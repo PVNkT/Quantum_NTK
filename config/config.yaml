@@ -7,3 +7,4 @@ hhl: False
 save:
   kernel: False
   output: False
+  log: True

@@ -2,6 +2,7 @@ import csv
 import jax.numpy as np
 
 from utils import csv_append, npy_save
+import logging
 
 class make_result:
     def __init__(self, cfg, means, labels, sparsity):
@@ -21,7 +22,7 @@ class make_result:
         self.sparse_mode = cfg.sparse.method
         self.selection = cfg.selection
         # 계산된 정확도를 출력
-        print(f'sparsity {self.sparsity} accuracy:', acc)
+        logging.info(f'sparsity {self.sparsity} accuracy: {float(acc)}')
         # 계산 결과를 csv파일로 저장
         with csv_append(f'accuracy/{self.selection}/{self.sparse_mode}/csv_files/{self.sparse_mode}_sparse_output_{self.cfg.seed}.csv') as wr:
             wr.writerow([self.sparsity, acc])

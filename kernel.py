@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 
 from hhl.solver import HHL_my
 from utils import npy_save
-import ipdb
+import logging
 
 #kernel 생성을 위한 class.
 class make_kernel():
@@ -75,7 +75,7 @@ class make_kernel():
         return mean
     
     #sparse kernel의 평균을 계산하기 위한 값. 
-    def calc_sparse(self, sparsity):
+    def calc_sparse(self, sparsity, log):
         self.sparsifying(sparsity)
         self.normalize()
         # sparse 행렬을 사용한 값
@@ -85,8 +85,11 @@ class make_kernel():
                 npy
 
         if self.hhl == False:
+            inversed_kernel = inv(self.kernel_train_sparse)
+            if np.isnan(inversed_kernel).any():
+                log.warning(f"cannot invert sparsity {sparsity} kernel")
+            mean_sparse = self.kernel_test_normalized @ inversed_kernel @ self.train_data['label']
             
-            mean_sparse = self.kernel_test_normalized @ inv(self.kernel_train_sparse) @ self.train_data['label']
         else :
             '''
             calculate column by column
@@ -315,8 +318,9 @@ class sparsify(tools): #tools를 상속받아옴
         n = self.sparsity
         m = np2.array(self.original_kernel)
 
-        # make diagoanl elements to avoid double counting
         m[n:, :] = 0
+        # to avoid double counting of diagonal elements
+        np2.fill_diagonal(m, 0)
         # add diagonal elements
         m += np2.diag(np2.diag(self.original_kernel))
                
@@ -329,11 +333,11 @@ class sparsify(tools): #tools를 상속받아옴
         n = self.sparsity
         m = np2.array(self.original_kernel)
 
-        column_kernel = self.original_kernel 
-        # make diagoanl elements to avoid double counting
         m[:, n:] = 0
+        # to avoid double counting of diagonal elements
+        np2.fill_diagonal(m, 0)
         # add diagonal elements
-        m += np2.diag(np2.diag(column_kernel))
+        m += np2.diag(np2.diag(self.original_kernel))
                
         return np.array(m)
     
@@ -467,7 +471,16 @@ class sparsify(tools): #tools를 상속받아옴
         anti_diagonal += np.diag(np.diag(self.original_kernel))
         return anti_diagonal
 
-
+    def inv_diagonal(self):
+        N = int(self.original_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(self.original_kernel))
+        for i in range(0,self.sparsity+1):
+            diagonal += np.diag(np.diag(self.original_kernel,k=256-i),k=256-i)
+            diagonal += np.diag(np.diag(self.original_kernel,k=-256+i),k=-256+i)
+        #self.conditioned_matrix = self.conditioning(diagonal)
+        return diagonal#self.conditioned_matrix
+    
 
 if __name__=="__main__":
     cfg = OmegaConf.load("./config/MNIST.yaml")
@@ -477,7 +490,7 @@ if __name__=="__main__":
     sparsity = 2
     #m = np2.ones((5,5))#(256,256)
     m = np2.ones((256, 256))
-    kernel = sparsify(m, sparsity, key, k_threshold).single_anti_diagonal()
+    kernel = sparsify(m, sparsity, key, k_threshold).inv_diagonal()
     #np.save('/workspace/thstestkernel',kernel)
     print(kernel)
 

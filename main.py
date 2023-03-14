@@ -5,7 +5,8 @@ import data_process
 import network
 from kernel import make_kernel
 from result import make_result
-from utils import npy_save
+from utils import logging_default
+import logging
 
 # config들을 불러와 한데 모으고, 데이터를 정제하여 커널을 생성하는 통제 함수.
 def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와서 cfg에 할당.
@@ -26,7 +27,10 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 호출한 data_type.yaml파일을 위의 config.yaml과 OmegaConf.merge를 이용하여 합친다.
     cfg = OmegaConf.merge(cfg, model_params)    
     cfg.merge_with_cli()
-    print("Data Initialization completed")
+    with logging_default(cfg) as logger:
+        log=logger
+    
+    log.info("Data Initialization completed")
     
     #----------------------------------------------------------#
     #|             2. Getting Processed Data stage             |
@@ -39,7 +43,7 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     data = getattr(data_process, data_type + "_data_process") 
     data_class = data(cfg)
     datas = data_class.processed_train, data_class.processed_test 
-    print("Data Processing completed")
+    log.info("Data Processing completed")
 
     #----------------------------------------------------------#
     #|        3. Making Kernels and its assessment             |
@@ -61,16 +65,16 @@ def main(cfg = OmegaConf.load("config/config.yaml")): #config.yaml을 불러와�
     # 정확히 계산된 kernel, sparse 과정을 거친 kernel, 대각 성분만 남긴 kernel을 각각 계산한다.
     kernels = make_kernel(kernel_fn=kernel_fn, cfg=cfg, data=datas)
     
-    print("Kernel making completed")
+    log.info("Kernel making completed")
     sparse = cfg.sparse
 
 
     for sparsity in np.arange(*tuple(dict(sparse).values())[1:]):
         #앞서 만든 Sparse kernel을 통해서 평균에 대한 계산을 진행한다.
-        mean = kernels.calc_sparse(sparsity) #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
+        mean = kernels.calc_sparse(sparsity, log) #(256, 2) : MNIST의 shape가 나옴. 0일확률과 1일 확률이 출력됨.
         # 계산 결과를 통해서 kernel들의 예측값을 얻고 이를 통해서 정확도를 계산하고 결과를 저장한다.
         make_result(cfg, mean, datas[1]['label'], sparsity)
-        print(f"sparsity: {sparsity} Data storing...")
+        logger.info(f"sparsity: {sparsity} Data storing...")
 
 if __name__ == "__main__":
     main()
