@@ -15,3 +15,4 @@ sparse:
   first: 1
   last: 2
   term: 1
+  exception: 1

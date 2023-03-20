@@ -25,6 +25,7 @@ class make_kernel():
         #주어진 seed에 맞게 key를 만듬
         self.seed = cfg.seed
         self.key = random.PRNGKey(self.seed) #[ 0 12]
+        self.cfg = cfg
         # label별 데이터 수의 최대 값
         self.k_threshold = cfg.k_threshold 
         # sparse method에는 origin, random, block이 존재.
@@ -52,7 +53,7 @@ class make_kernel():
         #class를 저장하여 getattr로 이름에 맞는
         if self.sparse_method == "block":
             sparsity = 2**sparsity 
-        self.sparsifying_class = sparsify(self.kernel_train, sparsity, self.key, self.k_threshold)
+        self.sparsifying_class = sparsify(self.kernel_train, sparsity, self.key, self.cfg)
         self.sparsify = getattr(self.sparsifying_class, self.sparse_method)
 
     def normalize(self):
@@ -138,11 +139,12 @@ class tools:
 
 #tools에 sparsification을 위한 함수들을 모아놓은 class.
 class sparsify(tools): #tools를 상속받아옴
-    def __init__(self, m, sparsity, key, k_threshold): #m자리에 test/train kernel을 넣었음
+    def __init__(self, m, sparsity, key, cfg): #m자리에 test/train kernel을 넣었음
         self.key = key
         self.sparsity = sparsity
-        self.k_threshold = k_threshold
+        self.k_threshold = cfg.k_threshold
         self.original_kernel = m
+        self.exception = cfg.sparse.exception
 
     # sparse matrix를 주어진 sparse 확률에 따라서 만들어주는 함수.
     def origin(self): #decipriated!
@@ -278,6 +280,25 @@ class sparsify(tools): #tools를 상속받아옴
         #self.conditioned_matrix = self.conditioning(diagonal)
         return diagonal#self.conditioned_matrix
     
+    def pop_diagonal(self):
+        '''
+        kernel의 대각선 요소만 남겨 diagonal kernel을 만든다.
+        numpy diag는 주어진 행렬의 대각 성분만을 추출해 1차원 array로 반환한다.
+        numpy eye는 주어진 크기의 identity 행렬을 만들고 추가적인 인수가 주어진 경우 그만큼 대각 성분이 이동한 값을 주게 된다.
+        그러므로 diagonal element들만 빼놓고 모두 0이 되는 kernel을 나타낸다.
+        '''
+        N = int(self.original_kernel.shape[0])
+        diagonal = np.zeros((N,N))
+        diagonal += np.diag(np.diag(self.original_kernel))
+        for i in range(1,self.sparsity+1):
+            if int(self.exception) == i:
+                continue
+            else:
+                diagonal += np.diag(np.diag(self.original_kernel,k=i),k=i)
+                diagonal += np.diag(np.diag(self.original_kernel,k=-i),k=-i)
+        #self.conditioned_matrix = self.conditioning(diagonal)
+        return diagonal#self.conditioned_matrix
+ 
     #kernel의 element들을 크기별로 나열하여 작은 순서대로 나열하여 순차적으로 0으로 만듦
     def threshold(self):
         l = self.sparsity
@@ -486,11 +507,10 @@ if __name__=="__main__":
     cfg = OmegaConf.load("./config/MNIST.yaml")
     cfg.merge_with_cli()
     key = random.PRNGKey(12)
-    k_threshold = cfg.k_threshold
     sparsity = 2
     #m = np2.ones((5,5))#(256,256)
     m = np2.ones((256, 256))
-    kernel = sparsify(m, sparsity, key, k_threshold).inv_diagonal()
+    kernel = sparsify(m, sparsity, key, cfg).pop_diagonal()
     #np.save('/workspace/thstestkernel',kernel)
     print(kernel)
 
